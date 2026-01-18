@@ -7,7 +7,8 @@ dotenv.config()
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN
 const DISCORD_CHANNEL_ID = process.env.DISCORD_CHANNEL_ID
-const WEB_APP_URL = process.env.WEB_APP_URL || 'http://localhost:3000'
+// Normalize WEB_APP_URL: remove trailing slashes
+const WEB_APP_URL = (process.env.WEB_APP_URL || 'http://localhost:3000').replace(/\/+$/, '')
 const API_SECRET = process.env.API_SECRET
 
 if (!DISCORD_BOT_TOKEN) {
@@ -101,6 +102,9 @@ async function submitVideo(
   videoUrl: string,
   platform: 'youtube' | 'tiktok'
 ): Promise<{ success: boolean; message?: string; error?: string }> {
+  // Construct API endpoint URL (WEB_APP_URL is already normalized to not have trailing slash)
+  const apiUrl = `${WEB_APP_URL}/api/videos/submit`
+  
   try {
     // Normalize URL to ensure it has a protocol
     const normalizedUrl = normalizeUrl(videoUrl)
@@ -113,8 +117,11 @@ async function submitVideo(
       headers['Authorization'] = `Bearer ${API_SECRET}`
     }
 
+    console.log(`📤 Submitting to API: ${apiUrl}`)
+    console.log(`📤 Payload:`, { discordUsername, videoUrl: normalizedUrl, platform })
+
     const response = await axios.post(
-      `${WEB_APP_URL}/api/videos/submit`,
+      apiUrl,
       {
         discordUsername,
         videoUrl: normalizedUrl,
@@ -136,16 +143,26 @@ async function submitVideo(
     }
   } catch (error: any) {
     if (error.response) {
+      const status = error.response.status
+      const statusText = error.response.statusText
+      const errorData = error.response.data
+      
+      console.error(`❌ API Error ${status} ${statusText}:`, errorData)
+      console.error(`❌ Request URL: ${apiUrl}`)
+      
       return {
         success: false,
-        error: error.response.data?.error || `HTTP ${error.response.status}: ${error.response.statusText}`,
+        error: errorData?.error || errorData?.message || `HTTP ${status}: ${statusText}`,
       }
     } else if (error.request) {
+      console.error(`❌ Network error: Failed to connect to ${apiUrl}`)
+      console.error(`❌ Error details:`, error.message)
       return {
         success: false,
         error: 'Failed to connect to web app API',
       }
     } else {
+      console.error(`❌ Request setup error:`, error.message)
       return {
         success: false,
         error: error.message || 'Unknown error',
