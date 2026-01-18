@@ -46,6 +46,18 @@ interface VideoLink {
 }
 
 /**
+ * Normalize URL to include protocol if missing
+ */
+function normalizeUrl(url: string): string {
+  // If URL already has protocol, return as-is
+  if (/^https?:\/\//i.test(url)) {
+    return url
+  }
+  // Otherwise, add https://
+  return `https://${url}`
+}
+
+/**
  * Extract all video URLs from a message
  */
 function extractVideoLinks(content: string): VideoLink[] {
@@ -57,9 +69,10 @@ function extractVideoLinks(content: string): VideoLink[] {
     const matches = Array.from(content.matchAll(pattern))
     for (const match of matches) {
       const url = match[0]
-      if (!foundUrls.has(url)) {
-        foundUrls.add(url)
-        links.push({ url, platform: 'youtube' })
+      const normalizedUrl = normalizeUrl(url)
+      if (!foundUrls.has(normalizedUrl)) {
+        foundUrls.add(normalizedUrl)
+        links.push({ url: normalizedUrl, platform: 'youtube' })
       }
     }
   }
@@ -69,9 +82,10 @@ function extractVideoLinks(content: string): VideoLink[] {
     const matches = Array.from(content.matchAll(pattern))
     for (const match of matches) {
       const url = match[0]
-      if (!foundUrls.has(url)) {
-        foundUrls.add(url)
-        links.push({ url, platform: 'tiktok' })
+      const normalizedUrl = normalizeUrl(url)
+      if (!foundUrls.has(normalizedUrl)) {
+        foundUrls.add(normalizedUrl)
+        links.push({ url: normalizedUrl, platform: 'tiktok' })
       }
     }
   }
@@ -88,6 +102,9 @@ async function submitVideo(
   platform: 'youtube' | 'tiktok'
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
+    // Normalize URL to ensure it has a protocol
+    const normalizedUrl = normalizeUrl(videoUrl)
+    
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -100,7 +117,7 @@ async function submitVideo(
       `${WEB_APP_URL}/api/videos/submit`,
       {
         discordUsername,
-        videoUrl,
+        videoUrl: normalizedUrl,
         platform,
       },
       { headers, timeout: 30000 }
