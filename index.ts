@@ -20,6 +20,13 @@ if (!DISCORD_CHANNEL_ID) {
   process.exit(1)
 }
 
+// Warn if WEB_APP_URL is not set or is localhost in production
+if (WEB_APP_URL === 'http://localhost:3000' || WEB_APP_URL.includes('localhost')) {
+  console.warn('⚠️  WARNING: WEB_APP_URL is set to localhost.')
+  console.warn('⚠️  In production, set WEB_APP_URL to your deployed web app URL (e.g., https://your-app.vercel.app)')
+  console.warn('⚠️  Update this in your deployment platform (Railway/Render) environment variables')
+}
+
 // YouTube Shorts URL patterns
 const YOUTUBE_PATTERNS = [
   /(?:https?:\/\/)?(?:www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/gi,
@@ -192,10 +199,16 @@ const client = new Client({
   ],
 })
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`✅ Discord bot logged in as ${client.user?.tag}`)
   console.log(`📺 Monitoring channel: ${DISCORD_CHANNEL_ID}`)
   console.log(`🌐 Web app URL: ${WEB_APP_URL}`)
+  
+  // Warn if using localhost in production
+  if (WEB_APP_URL.includes('localhost') && process.env.NODE_ENV === 'production') {
+    console.warn('⚠️  WARNING: WEB_APP_URL is set to localhost. This will not work in production!')
+    console.warn('⚠️  Please set WEB_APP_URL to your deployed web app URL (e.g., https://your-app.vercel.app)')
+  }
 })
 
 client.on('messageCreate', async (message) => {
